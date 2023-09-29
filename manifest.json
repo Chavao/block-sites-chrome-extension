@@ -16,7 +16,6 @@
         "https://flatout.com.br/*",
         "https://mail.google.com/*",
         "https://www.instagram.com/*",
-        "https://web.whatsapp.com/*",
         "https://www.reddit.com/*"
       ],
       "js": ["content.js"]

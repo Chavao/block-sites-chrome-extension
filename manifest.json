@@ -12,6 +12,7 @@
     {
       "matches": [
         "https://twitter.com/*",
+        "https://x.com/*",
         "https://www.youtube.com/*",
         "https://flatout.com.br/*",
         "https://mail.google.com/*",

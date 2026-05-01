@@ -2,29 +2,24 @@
   "manifest_version": 3,
   "name": "Block Sites",
   "version": "0.0.2",
-  "icons": { 
+  "options_page": "options.html",
+  "icons": {
     "16": "assets/icon.png",
     "32": "assets/icon.png",
     "64": "assets/icon.png",
-    "128": "assets/icon.png" 
+    "128": "assets/icon.png"
   },
   "content_scripts": [
     {
       "matches": [
-        "https://twitter.com/*",
-        "https://x.com/*",
-        "https://www.youtube.com/*",
-        "https://flatout.com.br/*",
-        "https://mail.google.com/*",
-        "https://www.instagram.com/*",
-        "https://www.reddit.com/*",
-        "https://www.facebook.com/*"
+        "<all_urls>"
       ],
-      "js": ["content.js"],
+      "js": ["defaults.js", "content.js"],
       "run_at": "document_start"
     }
   ],
   "permissions": [
-    "tabs"
+    "tabs",
+    "storage"
   ]
 }

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Block Sites - Configuration</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Blocked URL Configuration</h1>
+      <p class="description">
+        Add one URL pattern per line. Use <code>*</code> as wildcard. Example:
+        <code>https://example.com/*</code>
+      </p>
+
+      <textarea
+        id="patterns"
+        rows="16"
+        spellcheck="false"
+        aria-label="Blocked URL patterns"
+      ></textarea>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+
+      <div class="actions">
+        <button id="save" type="button">Save</button>
+        <button id="export" type="button" class="secondary">Export backup</button>
+        <button id="import" type="button" class="secondary">Import backup</button>
+      </div>
+      <input id="import-file" type="file" accept=".json,application/json" hidden />
+    </main>
+
+    <script src="defaults.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

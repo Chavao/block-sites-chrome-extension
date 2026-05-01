@@ -1,4 +1,5 @@
 const storageKey = window.BLOCK_SITES_STORAGE_KEY || "blockedUrlPatterns";
+const pauseKey = "blockSitesPausedUntil";
 const defaultPatterns = window.BLOCK_SITES_DEFAULTS || [];
 
 function escapeRegExp(text) {
@@ -39,6 +40,19 @@ function blockPage() {
   `;
 }
 
+function getPausedUntil() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get([pauseKey], (result) => {
+      if (chrome.runtime.lastError) {
+        resolve(0);
+        return;
+      }
+
+      resolve(result[pauseKey] || 0);
+    });
+  });
+}
+
 function getBlockedPatterns() {
   return new Promise((resolve) => {
     chrome.storage.sync.get([storageKey], (result) => {
@@ -60,6 +74,12 @@ function getBlockedPatterns() {
 
 (async () => {
   const url = window.location.href;
+  const pausedUntil = await getPausedUntil();
+
+  if (pausedUntil > Date.now()) {
+    return;
+  }
+
   const patterns = await getBlockedPatterns();
   const shouldBlock = patterns.some((pattern) => matchesBlockedPattern(url, pattern));
 

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Block Sites</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="popup">
+      <div id="status-indicator" class="status-indicator">
+        <span class="status-icon active"></span>
+        <span class="status-text">Blocking Active</span>
+      </div>
+
+      <div id="pause-options" class="pause-options">
+        <p class="label">Pause blocking for:</p>
+        <div class="time-buttons">
+          <button type="button" data-minutes="5">5 min</button>
+          <button type="button" data-minutes="10">10 min</button>
+          <button type="button" data-minutes="30">30 min</button>
+          <button type="button" data-minutes="60">1 hour</button>
+        </div>
+      </div>
+
+      <div id="pause-active" class="pause-active hidden">
+        <p class="label">Blocking Paused</p>
+        <p id="time-remaining" class="time-remaining"></p>
+        <button type="button" id="resume-btn" class="resume-btn">Resume Blocking</button>
+      </div>
+    </div>
+
+    <script src="defaults.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

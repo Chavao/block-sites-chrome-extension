@@ -25,6 +25,22 @@ h1 {
   color: #374151;
 }
 
+.field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+input[type="text"] {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: 14px/1.5 Arial, sans-serif;
+  background: #fff;
+  margin-bottom: 12px;
+}
+
 textarea {
   width: 100%;
   border: 1px solid #cbd5e1;

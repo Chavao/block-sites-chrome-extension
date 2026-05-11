@@ -1,7 +1,10 @@
 const storageKey = window.BLOCK_SITES_STORAGE_KEY || "blockedUrlPatterns";
+const blockMessageKey = window.BLOCK_SITES_BLOCK_MESSAGE_KEY || "blockPageMessage";
 const defaultPatterns = window.BLOCK_SITES_DEFAULTS || [];
+const defaultBlockMessage = window.BLOCK_SITES_DEFAULT_BLOCK_MESSAGE || "Go back to work!";
 
 const patternsField = document.getElementById("patterns");
+const blockMessageField = document.getElementById("block-message");
 const saveButton = document.getElementById("save");
 const exportButton = document.getElementById("export");
 const importButton = document.getElementById("import");
@@ -37,6 +40,19 @@ function renderPatterns(patterns) {
   patternsField.value = patterns.join("\n");
 }
 
+function renderBlockMessage(message) {
+  blockMessageField.value = message;
+}
+
+function normalizeBlockMessage(value) {
+  if (typeof value !== "string") {
+    return defaultBlockMessage;
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue || defaultBlockMessage;
+}
+
 function validatePatterns(patterns) {
   const invalidPattern = patterns.find((pattern) => !isValidPattern(pattern));
   if (invalidPattern) {
@@ -47,12 +63,36 @@ function validatePatterns(patterns) {
   return true;
 }
 
-function savePatternList(patterns, successMessage) {
+function validateBlockMessage(message) {
+  if (typeof message !== "string") {
+    setStatus("Invalid message.", true);
+    return false;
+  }
+
+  const trimmedMessage = message.trim();
+  if (!trimmedMessage) {
+    setStatus("Message cannot be empty.", true);
+    return false;
+  }
+
+  if (trimmedMessage.length > 120) {
+    setStatus("Message must be at most 120 characters.", true);
+    return false;
+  }
+
+  return true;
+}
+
+function saveSettings(patterns, blockMessage, successMessage) {
   if (!validatePatterns(patterns)) {
     return;
   }
 
-  chrome.storage.sync.set({ [storageKey]: patterns }, () => {
+  if (!validateBlockMessage(blockMessage)) {
+    return;
+  }
+
+  chrome.storage.sync.set({ [storageKey]: patterns, [blockMessageKey]: blockMessage.trim() }, () => {
     if (chrome.runtime.lastError) {
       setStatus("Failed to save settings.", true);
       return;
@@ -64,7 +104,8 @@ function savePatternList(patterns, successMessage) {
 
 function savePatterns() {
   const patterns = parsePatterns(patternsField.value);
-  savePatternList(patterns, "Settings saved.");
+  const blockMessage = normalizeBlockMessage(blockMessageField.value);
+  saveSettings(patterns, blockMessage, "Settings saved.");
 }
 
 function exportBackup() {
@@ -73,7 +114,12 @@ function exportBackup() {
     return;
   }
 
-  const backupJson = JSON.stringify({ [storageKey]: patterns }, null, 2);
+  const blockMessage = normalizeBlockMessage(blockMessageField.value);
+  if (!validateBlockMessage(blockMessage)) {
+    return;
+  }
+
+  const backupJson = JSON.stringify({ [storageKey]: patterns, [blockMessageKey]: blockMessage }, null, 2);
   const blob = new Blob([backupJson], { type: "application/json" });
   const downloadUrl = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -88,11 +134,17 @@ function exportBackup() {
 
 function loadPatternsFromBackup(payload) {
   if (Array.isArray(payload)) {
-    return payload;
+    return {
+      patterns: payload,
+      blockMessage: defaultBlockMessage
+    };
   }
 
   if (payload && typeof payload === "object" && Array.isArray(payload[storageKey])) {
-    return payload[storageKey];
+    return {
+      patterns: payload[storageKey],
+      blockMessage: normalizeBlockMessage(payload[blockMessageKey])
+    };
   }
 
   return null;
@@ -119,16 +171,22 @@ function handleImportFile(event) {
         return;
       }
 
-      const normalizedPatterns = importedPatterns
+      const normalizedPatterns = importedPatterns.patterns
         .map((pattern) => String(pattern).trim())
         .filter(Boolean);
+      const normalizedBlockMessage = normalizeBlockMessage(importedPatterns.blockMessage);
 
       if (!validatePatterns(normalizedPatterns)) {
         return;
       }
 
+      if (!validateBlockMessage(normalizedBlockMessage)) {
+        return;
+      }
+
       renderPatterns(normalizedPatterns);
-      savePatternList(normalizedPatterns, "Backup imported and saved.");
+      renderBlockMessage(normalizedBlockMessage);
+      saveSettings(normalizedPatterns, normalizedBlockMessage, "Backup imported and saved.");
     } catch (_error) {
       setStatus("Failed to parse backup JSON.", true);
     } finally {
@@ -145,21 +203,27 @@ function handleImportFile(event) {
 }
 
 function initialize() {
-  chrome.storage.sync.get([storageKey], (result) => {
+  chrome.storage.sync.get([storageKey, blockMessageKey], (result) => {
     if (chrome.runtime.lastError) {
       renderPatterns(defaultPatterns);
+      renderBlockMessage(defaultBlockMessage);
       setStatus("Loaded defaults (storage unavailable).", true);
       return;
     }
 
     const storedPatterns = result[storageKey];
-    if (Array.isArray(storedPatterns)) {
-      renderPatterns(storedPatterns);
-      return;
-    }
+    const nextPatterns = Array.isArray(storedPatterns) ? storedPatterns : defaultPatterns;
+    const nextBlockMessage = normalizeBlockMessage(result[blockMessageKey]);
 
-    renderPatterns(defaultPatterns);
-    chrome.storage.sync.set({ [storageKey]: defaultPatterns });
+    renderPatterns(nextPatterns);
+    renderBlockMessage(nextBlockMessage);
+
+    if (!Array.isArray(storedPatterns) || result[blockMessageKey] !== nextBlockMessage) {
+      chrome.storage.sync.set({
+        [storageKey]: nextPatterns,
+        [blockMessageKey]: nextBlockMessage
+      });
+    }
   });
 }
 

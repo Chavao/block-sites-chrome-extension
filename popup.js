@@ -10,6 +10,15 @@ const timeButtons = document.querySelectorAll(".time-buttons button");
 
 let timerInterval = null;
 
+function refreshActiveTab() {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const activeTabId = tabs[0]?.id;
+    if (typeof activeTabId === "number") {
+      chrome.tabs.reload(activeTabId);
+    }
+  });
+}
+
 function formatTimeRemaining(ms) {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const minutes = Math.floor(totalSeconds / 60);
@@ -32,7 +41,6 @@ function updatePauseStatus() {
         const remaining = pausedUntil - Date.now();
         if (remaining <= 0) {
           clearInterval(timerInterval);
-          chrome.storage.sync.remove(pauseKey);
           showActiveState();
         } else {
           timeRemaining.textContent = formatTimeRemaining(remaining);
@@ -46,26 +54,28 @@ function updatePauseStatus() {
   });
 }
 
-function showActiveState() {
+function showActiveState(onComplete) {
   clearInterval(timerInterval);
-  chrome.storage.sync.remove(pauseKey);
-  pauseOptions.classList.remove("hidden");
-  pauseActive.classList.add("hidden");
-  statusIndicator.querySelector(".status-icon").classList.add("active");
-  statusIndicator.querySelector(".status-text").textContent = "Blocking Active";
+  chrome.storage.sync.remove(pauseKey, () => {
+    pauseOptions.classList.remove("hidden");
+    pauseActive.classList.add("hidden");
+    statusIndicator.querySelector(".status-icon").classList.add("active");
+    statusIndicator.querySelector(".status-text").textContent = "Blocking Active";
+    onComplete?.();
+  });
 }
 
 function pauseBlocking(minutes) {
   const pausedUntil = Date.now() + minutes * 60 * 1000;
   chrome.storage.sync.set({ [pauseKey]: pausedUntil }, () => {
     updatePauseStatus();
+    refreshActiveTab();
   });
 }
 
 function resumeBlocking() {
   clearInterval(timerInterval);
-  chrome.storage.sync.remove(pauseKey);
-  showActiveState();
+  showActiveState(refreshActiveTab);
 }
 
 timeButtons.forEach((btn) => {

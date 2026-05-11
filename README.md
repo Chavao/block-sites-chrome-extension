@@ -2,13 +2,15 @@
 
 Block Sites is a small Chrome/Brave extension that helps reduce distractions by blocking user-defined URL patterns.
 
-When the current page URL matches one of the configured patterns, the extension stops the page from loading and replaces it with a minimal blocking screen that says:
+When the current page URL matches one of the configured patterns, the extension stops the page from loading and replaces it with a minimal blocking screen.
+
+The blocking message is configurable from the options page and defaults to:
 
 ```text
 Go back to work!
 ```
 
-The extension uses Manifest V3, runs as a content script, stores the block list in `chrome.storage.sync`, and includes an options page where blocked URL patterns can be edited, exported, and imported.
+The extension uses Manifest V3, runs as a content script, stores settings in `chrome.storage.sync`, and includes an options page where blocked URL patterns and the block message can be edited, exported, and imported.
 
 ## Features
 
@@ -16,6 +18,7 @@ The extension uses Manifest V3, runs as a content script, stores the block list 
 - Supports `*` wildcards in URL patterns.
 - Ships with a default list of distracting websites.
 - Stores custom patterns with `chrome.storage.sync`.
+- Stores a configurable block-page message with `chrome.storage.sync`.
 - Provides an options page for editing the block list.
 - Supports backup export as JSON.
 - Supports backup import from JSON.
@@ -113,6 +116,8 @@ It defines:
 
 ```js
 window.BLOCK_SITES_STORAGE_KEY = "blockedUrlPatterns";
+window.BLOCK_SITES_BLOCK_MESSAGE_KEY = "blockPageMessage";
+window.BLOCK_SITES_DEFAULT_BLOCK_MESSAGE = "Go back to work!";
 ```
 
 And the default block list:
@@ -139,9 +144,10 @@ Responsibilities:
 - Fall back to default patterns when needed.
 - Convert wildcard URL patterns into regular expressions.
 - Check whether the current URL matches any blocked pattern.
+- Load the block message from storage with default fallback.
 - Stop and replace the page when a match is found.
 
-The blocking screen is injected directly into `document.documentElement` and includes a dark background, a simple title, and the message `Go back to work!`.
+The blocking screen is injected directly into `document.documentElement` and includes a dark background, a simple title, and the configured message.
 
 ### `options.html`
 
@@ -149,6 +155,7 @@ Configuration page for the extension.
 
 It contains:
 
+- A text input for the block page message.
 - A textarea for editing blocked URL patterns.
 - A `Save` button.
 - An `Export backup` button.
@@ -163,14 +170,16 @@ Controls the options page.
 Responsibilities:
 
 - Load saved patterns from `chrome.storage.sync`.
+- Load the saved block page message from `chrome.storage.sync`.
 - Initialize storage with defaults when no saved list exists.
 - Parse one URL pattern per line.
 - Validate patterns before saving.
-- Save patterns to browser sync storage.
-- Export the current list as `block-sites-backup.json`.
+- Validate the message before saving.
+- Save patterns and message to browser sync storage.
+- Export the current settings as `block-sites-backup.json`.
 - Import patterns from either:
   - a JSON array; or
-  - an object containing the `blockedUrlPatterns` key.
+  - an object containing the `blockedUrlPatterns` key (and optional `blockPageMessage`).
 
 ### `options.css`
 
@@ -318,12 +327,13 @@ brave://extensions
 
 Depending on the browser UI version, you may also be able to right-click the extension icon in the toolbar and choose **Options**.
 
-## Editing the blocked sites list
+## Editing settings
 
 1. Open the extension options page.
-2. Add one pattern per line.
-3. Click **Save**.
-4. Reload any already-open tab you want to test.
+2. Update the block page message if needed.
+3. Add one pattern per line.
+4. Click **Save**.
+5. Reload any already-open tab you want to test.
 
 Example list:
 
@@ -347,15 +357,15 @@ Invalid patterns are rejected before saving. A valid pattern must include `://` 
 block-sites-backup.json
 ```
 
-The exported file contains the configured patterns in JSON format.
+The exported file contains configured settings in JSON format: blocked URL patterns and block-page message.
 
 ## Importing a backup
 
 1. Open the extension options page.
 2. Click **Import backup**.
 3. Select a JSON backup file.
-4. The extension validates the imported patterns.
-5. If valid, the list is rendered in the textarea and saved to `chrome.storage.sync`.
+4. The extension validates the imported settings.
+5. If valid, the list and message are rendered and saved to `chrome.storage.sync`.
 
 Accepted backup formats:
 
@@ -373,7 +383,8 @@ Or:
   "blockedUrlPatterns": [
     "https://x.com/*",
     "https://www.youtube.com/*"
-  ]
+  ],
+  "blockPageMessage": "Go back to work!"
 }
 ```
 

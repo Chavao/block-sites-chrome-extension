@@ -1,4 +1,6 @@
 window.BLOCK_SITES_STORAGE_KEY = "blockedUrlPatterns";
+window.BLOCK_SITES_BLOCK_MESSAGE_KEY = "blockPageMessage";
+window.BLOCK_SITES_DEFAULT_BLOCK_MESSAGE = "Go back to work!";
 
 window.BLOCK_SITES_DEFAULTS = Object.freeze([
   "https://x.com/*",

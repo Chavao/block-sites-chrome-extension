@@ -1,6 +1,8 @@
 const storageKey = window.BLOCK_SITES_STORAGE_KEY || "blockedUrlPatterns";
+const blockMessageKey = window.BLOCK_SITES_BLOCK_MESSAGE_KEY || "blockPageMessage";
 const pauseKey = "blockSitesPausedUntil";
 const defaultPatterns = window.BLOCK_SITES_DEFAULTS || [];
+const defaultBlockMessage = window.BLOCK_SITES_DEFAULT_BLOCK_MESSAGE || "Go back to work!";
 
 function escapeRegExp(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -19,12 +21,32 @@ function matchesBlockedPattern(url, pattern) {
   }
 }
 
-function blockPage() {
+function escapeHtml(text) {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function normalizeBlockMessage(value) {
+  if (typeof value !== "string") {
+    return defaultBlockMessage;
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue || defaultBlockMessage;
+}
+
+function blockPage(message) {
   window.stop();
   const html = document.documentElement;
   if (!html) {
     return;
   }
+
+  const safeMessage = escapeHtml(normalizeBlockMessage(message));
 
   html.innerHTML = `
     <head>
@@ -35,7 +57,7 @@ function blockPage() {
       </style>
     </head>
     <body>
-      <h1>Go back to work!</h1>
+      <h1>${safeMessage}</h1>
     </body>
   `;
 }
@@ -72,6 +94,19 @@ function getBlockedPatterns() {
   });
 }
 
+function getBlockMessage() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get([blockMessageKey], (result) => {
+      if (chrome.runtime.lastError) {
+        resolve(defaultBlockMessage);
+        return;
+      }
+
+      resolve(normalizeBlockMessage(result[blockMessageKey]));
+    });
+  });
+}
+
 (async () => {
   const url = window.location.href;
   const pausedUntil = await getPausedUntil();
@@ -84,6 +119,7 @@ function getBlockedPatterns() {
   const shouldBlock = patterns.some((pattern) => matchesBlockedPattern(url, pattern));
 
   if (shouldBlock) {
-    blockPage();
+    const blockMessage = await getBlockMessage();
+    blockPage(blockMessage);
   }
 })();

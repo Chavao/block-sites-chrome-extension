@@ -3,6 +3,10 @@ const blockMessageKey = window.BLOCK_SITES_BLOCK_MESSAGE_KEY || "blockPageMessag
 const pauseKey = "blockSitesPausedUntil";
 const defaultPatterns = window.BLOCK_SITES_DEFAULTS || [];
 const defaultBlockMessage = window.BLOCK_SITES_DEFAULT_BLOCK_MESSAGE || "Go back to work!";
+const maxTimerDelay = 2147483647;
+
+let pauseTimer = null;
+let isBlocked = false;
 
 function escapeRegExp(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -40,6 +44,8 @@ function normalizeBlockMessage(value) {
 }
 
 function blockPage(message) {
+  isBlocked = true;
+  clearPauseTimer();
   window.stop();
   const html = document.documentElement;
   if (!html) {
@@ -60,6 +66,13 @@ function blockPage(message) {
       <h1>${safeMessage}</h1>
     </body>
   `;
+}
+
+function clearPauseTimer() {
+  if (pauseTimer) {
+    clearTimeout(pauseTimer);
+    pauseTimer = null;
+  }
 }
 
 function getPausedUntil() {
@@ -107,14 +120,32 @@ function getBlockMessage() {
   });
 }
 
-(async () => {
+function schedulePauseExpiryCheck(pausedUntil) {
+  clearPauseTimer();
+  const remaining = pausedUntil - Date.now();
+
+  if (remaining <= 0) {
+    evaluateBlocking();
+    return;
+  }
+
+  pauseTimer = setTimeout(evaluateBlocking, Math.min(remaining, maxTimerDelay));
+}
+
+async function evaluateBlocking() {
+  if (isBlocked) {
+    return;
+  }
+
   const url = window.location.href;
   const pausedUntil = await getPausedUntil();
 
   if (pausedUntil > Date.now()) {
+    schedulePauseExpiryCheck(pausedUntil);
     return;
   }
 
+  clearPauseTimer();
   const patterns = await getBlockedPatterns();
   const shouldBlock = patterns.some((pattern) => matchesBlockedPattern(url, pattern));
 
@@ -122,4 +153,26 @@ function getBlockMessage() {
     const blockMessage = await getBlockMessage();
     blockPage(blockMessage);
   }
-})();
+}
+
+function evaluateWhenVisible() {
+  if (!document.hidden) {
+    evaluateBlocking();
+  }
+}
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "sync") {
+    return;
+  }
+
+  if (changes[pauseKey] || changes[storageKey] || changes[blockMessageKey]) {
+    evaluateBlocking();
+  }
+});
+
+document.addEventListener("visibilitychange", evaluateWhenVisible);
+window.addEventListener("focus", evaluateBlocking);
+window.addEventListener("pageshow", evaluateBlocking);
+
+evaluateBlocking();

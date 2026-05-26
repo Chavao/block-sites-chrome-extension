@@ -4,6 +4,8 @@ const pauseKey = "blockSitesPausedUntil";
 const defaultPatterns = window.BLOCK_SITES_DEFAULTS || [];
 const defaultBlockMessage = window.BLOCK_SITES_DEFAULT_BLOCK_MESSAGE || "Go back to work!";
 const maxTimerDelay = 2147483647;
+const countdownWindowMs = 30 * 1000;
+const extendPauseMs = 5 * 60 * 1000;
 
 let pauseTimer = null;
 let isBlocked = false;
@@ -46,6 +48,7 @@ function normalizeBlockMessage(value) {
 function blockPage(message) {
   isBlocked = true;
   clearPauseTimer();
+  hideCountdown();
   window.stop();
   const html = document.documentElement;
   if (!html) {
@@ -73,6 +76,10 @@ function clearPauseTimer() {
     clearTimeout(pauseTimer);
     pauseTimer = null;
   }
+}
+
+function hideCountdown() {
+  window.BlockSitesCountdownOverlay?.hide();
 }
 
 function getPausedUntil() {
@@ -120,16 +127,37 @@ function getBlockMessage() {
   });
 }
 
-function schedulePauseExpiryCheck(pausedUntil) {
+function setPausedUntil(pausedUntil) {
+  return new Promise((resolve) => {
+    chrome.storage.sync.set({ [pauseKey]: pausedUntil }, () => {
+      resolve(!chrome.runtime.lastError);
+    });
+  });
+}
+
+function scheduleEvaluation(delay) {
   clearPauseTimer();
-  const remaining = pausedUntil - Date.now();
+  pauseTimer = setTimeout(evaluateBlocking, Math.min(Math.max(0, delay), maxTimerDelay));
+}
 
-  if (remaining <= 0) {
-    evaluateBlocking();
-    return;
+async function extendPause(pausedUntil) {
+  const latestPausedUntil = await getPausedUntil();
+  const basePausedUntil = Math.max(latestPausedUntil, pausedUntil);
+  const nextPausedUntil = basePausedUntil + extendPauseMs;
+  const didSave = await setPausedUntil(nextPausedUntil);
+
+  if (didSave) {
+    hideCountdown();
+    scheduleEvaluation(nextPausedUntil - Date.now() - countdownWindowMs);
   }
+}
 
-  pauseTimer = setTimeout(evaluateBlocking, Math.min(remaining, maxTimerDelay));
+function showCountdown(pausedUntil) {
+  window.BlockSitesCountdownOverlay?.show(pausedUntil, () => {
+    extendPause(pausedUntil);
+  });
+
+  scheduleEvaluation(pausedUntil - Date.now());
 }
 
 async function evaluateBlocking() {
@@ -138,21 +166,33 @@ async function evaluateBlocking() {
   }
 
   const url = window.location.href;
-  const pausedUntil = await getPausedUntil();
+  const patterns = await getBlockedPatterns();
+  const shouldBlock = patterns.some((pattern) => matchesBlockedPattern(url, pattern));
 
-  if (pausedUntil > Date.now()) {
-    schedulePauseExpiryCheck(pausedUntil);
+  if (!shouldBlock) {
+    clearPauseTimer();
+    hideCountdown();
+    return;
+  }
+
+  const pausedUntil = await getPausedUntil();
+  const remainingPauseMs = pausedUntil - Date.now();
+
+  if (remainingPauseMs > countdownWindowMs) {
+    hideCountdown();
+    scheduleEvaluation(remainingPauseMs - countdownWindowMs);
+    return;
+  }
+
+  if (remainingPauseMs > 0) {
+    showCountdown(pausedUntil);
     return;
   }
 
   clearPauseTimer();
-  const patterns = await getBlockedPatterns();
-  const shouldBlock = patterns.some((pattern) => matchesBlockedPattern(url, pattern));
-
-  if (shouldBlock) {
-    const blockMessage = await getBlockMessage();
-    blockPage(blockMessage);
-  }
+  hideCountdown();
+  const blockMessage = await getBlockMessage();
+  blockPage(blockMessage);
 }
 
 function evaluateWhenVisible() {

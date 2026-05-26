@@ -10,7 +10,7 @@ The blocking message is configurable from the options page and defaults to:
 Go back to work!
 ```
 
-The extension uses Manifest V3, runs as a content script, stores settings in `chrome.storage.sync`, and includes an options page where blocked URL patterns and the block message can be edited, exported, and imported.
+The extension uses Manifest V3, runs as a content script, stores settings in `chrome.storage.sync`, includes an options page where blocked URL patterns and the block message can be edited, exported, and imported, and provides a popup for temporarily pausing blocking.
 
 ## Features
 
@@ -20,6 +20,8 @@ The extension uses Manifest V3, runs as a content script, stores settings in `ch
 - Stores custom patterns with `chrome.storage.sync`.
 - Stores a configurable block-page message with `chrome.storage.sync`.
 - Provides an options page for editing the block list.
+- Provides a popup for pausing blocking for 5, 10, 30, or 60 minutes.
+- Shows a 30-second countdown before paused blocking resumes.
 - Supports backup export as JSON.
 - Supports backup import from JSON.
 - Works in Chromium-based browsers such as Google Chrome and Brave.
@@ -45,21 +47,23 @@ These defaults are used when no custom list has been saved yet, or when storage 
 
 ## How it works
 
-The extension has three main parts:
+The extension has five main parts:
 
 1. `manifest.json` registers the extension and injects scripts into pages.
 2. `content.js` checks whether the current URL should be blocked.
-3. `options.html`, `options.css`, and `options.js` provide the configuration UI.
+3. `countdown-overlay.js` displays the pause-expiry countdown on blocked sites.
+4. `options.html`, `options.css`, and `options.js` provide the configuration UI.
+5. `popup.html`, `popup.css`, and `popup.js` provide quick pause/resume controls.
 
 ### Runtime behavior
 
-The extension is configured to inject `defaults.js` and `content.js` into all URLs:
+The extension is configured to inject `defaults.js`, `countdown-overlay.js`, and `content.js` into all URLs:
 
 ```json
 "content_scripts": [
   {
     "matches": ["<all_urls>"],
-    "js": ["defaults.js", "content.js"],
+    "js": ["defaults.js", "countdown-overlay.js", "content.js"],
     "run_at": "document_start"
   }
 ]
@@ -69,12 +73,15 @@ This does not mean every site is blocked. It means the extension runs early on e
 
 The decision flow is:
 
-1. Load the storage key and default patterns from `defaults.js`.
+1. Load the storage keys and default patterns from `defaults.js`.
 2. Read saved patterns from `chrome.storage.sync`.
 3. Fall back to the default patterns when no saved list exists.
 4. Convert each wildcard pattern into a regular expression.
 5. Compare the current page URL against the configured patterns.
-6. If there is a match, call `window.stop()` and replace the page HTML with the blocking screen.
+6. If there is no match, leave the page unchanged.
+7. If there is a match and blocking is paused, skip blocking until the pause expires.
+8. During the final 30 seconds of a pause, show a countdown overlay with an option to add 5 minutes.
+9. When the pause expires, call `window.stop()` and replace the page HTML with the blocking screen.
 
 ## Project structure
 
@@ -83,12 +90,16 @@ The decision flow is:
 ├── assets/
 │   └── icon.png
 ├── content.js
+├── countdown-overlay.js
 ├── defaults.js
 ├── LICENSE
 ├── manifest.json
 ├── options.css
 ├── options.html
 ├── options.js
+├── popup.css
+├── popup.html
+├── popup.js
 └── README.md
 ```
 
@@ -102,9 +113,10 @@ It defines:
 
 - Manifest V3 usage.
 - Extension name and version.
+- Browser action popup: `popup.html`.
 - Extension icon paths.
 - Options page: `options.html`.
-- Content scripts: `defaults.js` and `content.js`.
+- Content scripts: `defaults.js`, `countdown-overlay.js`, and `content.js`.
 - Script execution timing: `document_start`.
 - Required permissions: `tabs` and `storage`.
 
@@ -144,10 +156,25 @@ Responsibilities:
 - Fall back to default patterns when needed.
 - Convert wildcard URL patterns into regular expressions.
 - Check whether the current URL matches any blocked pattern.
+- Load the pause expiry timestamp from `chrome.storage.sync`.
+- Skip blocking while a pause is active.
+- Show the countdown overlay during the final 30 seconds of a pause.
+- Re-evaluate blocking when storage changes, the page becomes visible, the window gets focus, or the page is shown from browser cache.
 - Load the block message from storage with default fallback.
 - Stop and replace the page when a match is found.
 
 The blocking screen is injected directly into `document.documentElement` and includes a dark background, a simple title, and the configured message.
+
+### `countdown-overlay.js`
+
+Runs inside visited pages before `content.js`.
+
+Responsibilities:
+
+- Render a fixed countdown overlay when a paused blocked site is about to lock again.
+- Update the countdown once per second.
+- Provide an `Add 5 minutes` button that extends the current pause.
+- Remove the overlay when blocking resumes, the page no longer matches a blocked pattern, or the pause is extended.
 
 ### `options.html`
 
@@ -186,6 +213,32 @@ Responsibilities:
 Styles the options page.
 
 It defines the layout, textarea, buttons, and status messages.
+
+### `popup.html`
+
+Popup page opened from the extension toolbar icon.
+
+It contains:
+
+- A status indicator for active or paused blocking.
+- Pause buttons for 5, 10, 30, and 60 minutes.
+- A pause countdown when blocking is currently paused.
+- A `Resume Blocking` button.
+
+### `popup.js`
+
+Controls the popup page.
+
+Responsibilities:
+
+- Read and write the pause expiry timestamp in `chrome.storage.sync`.
+- Save pause durations selected from the popup.
+- Clear the pause timestamp when blocking resumes.
+- Reload the active browser tab after pausing or resuming so the visible page reflects the new blocking state.
+
+### `popup.css`
+
+Styles the popup page.
 
 ## URL pattern format
 
@@ -327,6 +380,20 @@ brave://extensions
 
 Depending on the browser UI version, you may also be able to right-click the extension icon in the toolbar and choose **Options**.
 
+## Pausing blocking
+
+After installing the extension, click the **Block Sites** toolbar icon to open the popup.
+
+Use the popup to:
+
+1. Pause blocking for 5, 10, 30, or 60 minutes.
+2. See the remaining pause time.
+3. Resume blocking immediately.
+
+When pausing or resuming from the popup, the extension reloads the active tab so the current page reflects the updated blocking state.
+
+On a blocked site, the extension shows a countdown overlay during the final 30 seconds before blocking resumes. Click **Add 5 minutes** in that overlay to extend the pause.
+
 ## Editing settings
 
 1. Open the extension options page.
@@ -394,7 +461,7 @@ There is no build command. The extension is loaded directly from the source file
 
 Typical workflow:
 
-1. Edit `manifest.json`, `defaults.js`, `content.js`, `options.html`, `options.css`, or `options.js`.
+1. Edit `manifest.json`, `defaults.js`, `content.js`, `countdown-overlay.js`, `options.html`, `options.css`, `options.js`, `popup.html`, `popup.css`, or `popup.js`.
 2. Open `chrome://extensions` or `brave://extensions`.
 3. Click **Reload** on the **Block Sites** extension card.
 4. Reload the target browser tab.
@@ -463,7 +530,7 @@ The extension currently requests:
 
 `storage` is used to persist the custom blocked URL list.
 
-`tabs` is currently declared in the manifest. Review whether it is still needed before publishing the extension, because the current blocking flow mainly depends on the content script and storage access.
+`tabs` is used by the popup to find and reload the active tab after pausing or resuming blocking.
 
 ## Limitations
 
@@ -478,7 +545,6 @@ The extension currently requests:
 ## Possible improvements
 
 - Add schedule-based blocking.
-- Add temporary pause/unblock mode.
 - Add password or challenge-based unlock.
 - Add preset categories such as social media, video, chat, or news.
 - Add import/export versioning.

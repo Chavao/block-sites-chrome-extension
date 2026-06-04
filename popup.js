@@ -6,9 +6,11 @@ const pauseOptions = document.getElementById("pause-options");
 const pauseActive = document.getElementById("pause-active");
 const timeRemaining = document.getElementById("time-remaining");
 const resumeBtn = document.getElementById("resume-btn");
+const addMinuteBtn = document.getElementById("add-minute-btn");
 const timeButtons = document.querySelectorAll(".time-buttons button");
 
 let timerInterval = null;
+let currentPausedUntil = 0;
 
 function refreshActiveTab() {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -27,9 +29,12 @@ function formatTimeRemaining(ms) {
 }
 
 function updatePauseStatus() {
+  clearInterval(timerInterval);
+
   chrome.storage.sync.get([pauseKey], (result) => {
     const pausedUntil = result[pauseKey] || 0;
     const now = Date.now();
+    currentPausedUntil = pausedUntil;
 
     if (pausedUntil > now) {
       pauseOptions.classList.add("hidden");
@@ -38,7 +43,7 @@ function updatePauseStatus() {
       statusIndicator.querySelector(".status-text").textContent = "Blocking Paused";
 
       timerInterval = setInterval(() => {
-        const remaining = pausedUntil - Date.now();
+        const remaining = currentPausedUntil - Date.now();
         if (remaining <= 0) {
           clearInterval(timerInterval);
           showActiveState();
@@ -56,6 +61,7 @@ function updatePauseStatus() {
 
 function showActiveState(onComplete) {
   clearInterval(timerInterval);
+  currentPausedUntil = 0;
   chrome.storage.sync.remove(pauseKey, () => {
     pauseOptions.classList.remove("hidden");
     pauseActive.classList.add("hidden");
@@ -78,6 +84,19 @@ function resumeBlocking() {
   showActiveState(refreshActiveTab);
 }
 
+function addMinuteToPause() {
+  const now = Date.now();
+
+  if (currentPausedUntil <= now) {
+    showActiveState();
+    return;
+  }
+
+  currentPausedUntil += 60 * 1000;
+  timeRemaining.textContent = formatTimeRemaining(currentPausedUntil - now);
+  chrome.storage.sync.set({ [pauseKey]: currentPausedUntil }, updatePauseStatus);
+}
+
 timeButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
     const minutes = parseInt(btn.dataset.minutes, 10);
@@ -86,5 +105,6 @@ timeButtons.forEach((btn) => {
 });
 
 resumeBtn.addEventListener("click", resumeBlocking);
+addMinuteBtn.addEventListener("click", addMinuteToPause);
 
 updatePauseStatus();

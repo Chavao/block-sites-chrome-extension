@@ -87,12 +87,18 @@ body {
   color: #fbbf24;
 }
 
-.resume-btn {
+.pause-actions {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+}
+
+.resume-btn,
+.add-minute-btn {
   width: 100%;
   padding: 12px;
   border: none;
   border-radius: 6px;
-  background: #2563eb;
   color: #fff;
   font-size: 14px;
   font-weight: 600;
@@ -100,8 +106,22 @@ body {
   transition: background 0.15s;
 }
 
+.resume-btn {
+  flex: 3;
+  background: #2563eb;
+}
+
 .resume-btn:hover {
   background: #1d4ed8;
+}
+
+.add-minute-btn {
+  flex: 1;
+  background: #059669;
+}
+
+.add-minute-btn:hover {
+  background: #047857;
 }
 
 .hidden {

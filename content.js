@@ -6,6 +6,7 @@ const defaultBlockMessage = window.BLOCK_SITES_DEFAULT_BLOCK_MESSAGE || "Go back
 const maxTimerDelay = 2147483647;
 const countdownWindowMs = 30 * 1000;
 const extendPauseMs = 5 * 60 * 1000;
+const fontBaseUrl = chrome.runtime.getURL("assets/fonts/");
 
 let pauseTimer = null;
 let isBlocked = false;
@@ -61,8 +62,24 @@ function blockPage(message) {
     <head>
       <title>Blocked</title>
       <style>
-        body { font-family: Arial, sans-serif; display: grid; place-items: center; min-height: 100vh; margin: 0; background: #111827; color: #f9fafb; }
-        h1 { font-size: 2rem; margin: 0; }
+        @font-face {
+          font-family: "Manrope";
+          font-style: normal;
+          font-weight: 400;
+          font-display: swap;
+          src: url("${fontBaseUrl}manrope-400.ttf") format("truetype");
+        }
+
+        @font-face {
+          font-family: "Manrope";
+          font-style: normal;
+          font-weight: 700;
+          font-display: swap;
+          src: url("${fontBaseUrl}manrope-700.ttf") format("truetype");
+        }
+
+        body { font-family: "Manrope", Arial, sans-serif; font-style: normal; display: grid; place-items: center; min-height: 100vh; margin: 0; background: #111827; color: #f9fafb; }
+        h1 { font-family: "Manrope", Arial, sans-serif !important; font-size: 50px !important; font-style: normal !important; font-weight: 700 !important; letter-spacing: 0 !important; line-height: 1.08 !important; margin: 0; }
       </style>
     </head>
     <body>

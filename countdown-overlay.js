@@ -2,6 +2,7 @@
   const overlayId = "block-sites-countdown-overlay";
   const styleId = "block-sites-countdown-style";
   const apiName = "BlockSitesCountdownOverlay";
+  const fontBaseUrl = chrome.runtime.getURL("assets/fonts/");
 
   let countdownInterval = null;
   let extendHandler = null;
@@ -14,6 +15,22 @@
     const style = document.createElement("style");
     style.id = styleId;
     style.textContent = `
+      @font-face {
+        font-family: "Manrope";
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url("${fontBaseUrl}manrope-400.ttf") format("truetype");
+      }
+
+      @font-face {
+        font-family: "Manrope";
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+        src: url("${fontBaseUrl}manrope-700.ttf") format("truetype");
+      }
+
       #${overlayId} {
         position: fixed;
         right: 20px;
@@ -26,7 +43,8 @@
         background: #111827;
         box-shadow: 0 20px 45px rgba(15, 23, 42, 0.35);
         color: #f9fafb;
-        font-family: Arial, sans-serif;
+        font-family: "Manrope", Arial, sans-serif;
+        font-style: normal;
         line-height: 1.4;
       }
 

@@ -1,0 +1,46 @@
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("assets/fonts/manrope-400.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("assets/fonts/manrope-600.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("assets/fonts/manrope-700.ttf") format("truetype");
+}
+
+:root {
+  --block-sites-font-family: "Manrope", Arial, sans-serif;
+  --block-sites-heading-size: 50px;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--block-sites-font-family) !important;
+  font-style: normal;
+}
+
+h1 {
+  font-family: var(--block-sites-font-family) !important;
+  font-size: var(--block-sites-heading-size) !important;
+  font-style: normal !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.08 !important;
+}

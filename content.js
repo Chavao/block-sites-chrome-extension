@@ -10,6 +10,7 @@ const fontBaseUrl = chrome.runtime.getURL("assets/fonts/");
 
 let pauseTimer = null;
 let isBlocked = false;
+let extensionContextInvalidated = false;
 
 function escapeRegExp(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -99,10 +100,51 @@ function hideCountdown() {
   window.BlockSitesCountdownOverlay?.hide();
 }
 
+function isExtensionContextInvalidatedError(error) {
+  return error?.message?.includes("Extension context invalidated");
+}
+
+function markExtensionContextInvalidated() {
+  extensionContextInvalidated = true;
+  clearPauseTimer();
+  hideCountdown();
+}
+
+function getStorageValues(keys) {
+  return new Promise((resolve) => {
+    if (extensionContextInvalidated) {
+      resolve({ contextInvalidated: true, result: null });
+      return;
+    }
+
+    try {
+      chrome.storage.sync.get(keys, (result) => {
+        const error = chrome.runtime.lastError;
+        if (error) {
+          if (isExtensionContextInvalidatedError(error)) {
+            markExtensionContextInvalidated();
+          }
+
+          resolve({ contextInvalidated: extensionContextInvalidated, result: null });
+          return;
+        }
+
+        resolve({ contextInvalidated: false, result });
+      });
+    } catch (error) {
+      if (isExtensionContextInvalidatedError(error)) {
+        markExtensionContextInvalidated();
+      }
+
+      resolve({ contextInvalidated: extensionContextInvalidated, result: null });
+    }
+  });
+}
+
 function getPausedUntil() {
   return new Promise((resolve) => {
-    chrome.storage.sync.get([pauseKey], (result) => {
-      if (chrome.runtime.lastError) {
+    getStorageValues([pauseKey]).then(({ result }) => {
+      if (!result) {
         resolve(0);
         return;
       }
@@ -114,9 +156,9 @@ function getPausedUntil() {
 
 function getBlockedPatterns() {
   return new Promise((resolve) => {
-    chrome.storage.sync.get([storageKey], (result) => {
-      if (chrome.runtime.lastError) {
-        resolve(defaultPatterns);
+    getStorageValues([storageKey]).then(({ contextInvalidated, result }) => {
+      if (!result) {
+        resolve(contextInvalidated ? [] : defaultPatterns);
         return;
       }
 
@@ -133,8 +175,8 @@ function getBlockedPatterns() {
 
 function getBlockMessage() {
   return new Promise((resolve) => {
-    chrome.storage.sync.get([blockMessageKey], (result) => {
-      if (chrome.runtime.lastError) {
+    getStorageValues([blockMessageKey]).then(({ result }) => {
+      if (!result) {
         resolve(defaultBlockMessage);
         return;
       }
@@ -146,9 +188,27 @@ function getBlockMessage() {
 
 function setPausedUntil(pausedUntil) {
   return new Promise((resolve) => {
-    chrome.storage.sync.set({ [pauseKey]: pausedUntil }, () => {
-      resolve(!chrome.runtime.lastError);
-    });
+    if (extensionContextInvalidated) {
+      resolve(false);
+      return;
+    }
+
+    try {
+      chrome.storage.sync.set({ [pauseKey]: pausedUntil }, () => {
+        const error = chrome.runtime.lastError;
+        if (error && isExtensionContextInvalidatedError(error)) {
+          markExtensionContextInvalidated();
+        }
+
+        resolve(!error);
+      });
+    } catch (error) {
+      if (isExtensionContextInvalidatedError(error)) {
+        markExtensionContextInvalidated();
+      }
+
+      resolve(false);
+    }
   });
 }
 
@@ -178,7 +238,7 @@ function showCountdown(pausedUntil) {
 }
 
 async function evaluateBlocking() {
-  if (isBlocked) {
+  if (isBlocked || extensionContextInvalidated) {
     return;
   }
 

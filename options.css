@@ -4,7 +4,6 @@
 
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
   background: #0b1220;
   color: #e5e7eb;
   color-scheme: dark;
@@ -43,7 +42,8 @@ input[type="text"] {
   border: 1px solid #334155;
   border-radius: 8px;
   padding: 10px 12px;
-  font: 14px/1.5 Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
   background: #111827;
   color: #e5e7eb;
   margin-bottom: 12px;
@@ -54,7 +54,8 @@ textarea {
   border: 1px solid #334155;
   border-radius: 8px;
   padding: 12px;
-  font: 14px/1.5 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 14px;
+  line-height: 1.5;
   background: #111827;
   color: #e5e7eb;
   resize: vertical;

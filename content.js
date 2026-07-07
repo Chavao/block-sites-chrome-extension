@@ -49,44 +49,51 @@ function normalizeBlockMessage(value) {
 
 function blockPage(message) {
   isBlocked = true;
-  clearPauseTimer();
-  hideCountdown();
-  window.stop();
-  const html = document.documentElement;
-  if (!html) {
-    return;
-  }
 
   const safeMessage = escapeHtml(normalizeBlockMessage(message));
+  const renderBlockPage = () => {
+    const html = document.documentElement;
+    if (!html) {
+      setTimeout(renderBlockPage, 0);
+      return;
+    }
 
-  html.innerHTML = `
-    <head>
-      <title>Blocked</title>
-      <style>
-        @font-face {
-          font-family: "Manrope";
-          font-style: normal;
-          font-weight: 400;
-          font-display: swap;
-          src: url("${fontBaseUrl}manrope-400.ttf") format("truetype");
-        }
+    clearPauseTimer();
+    hideCountdown();
+    window.stop();
 
-        @font-face {
-          font-family: "Manrope";
-          font-style: normal;
-          font-weight: 700;
-          font-display: swap;
-          src: url("${fontBaseUrl}manrope-700.ttf") format("truetype");
-        }
+    html.setAttribute("lang", "en");
+    html.innerHTML = `
+      <head>
+        <title>Blocked</title>
+        <style>
+          @font-face {
+            font-family: "Manrope";
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+            src: url("${fontBaseUrl}manrope-400.ttf") format("truetype");
+          }
 
-        body { font-family: "Manrope", Arial, sans-serif; font-style: normal; display: grid; place-items: center; min-height: 100vh; margin: 0; background: #111827; color: #f9fafb; }
-        h1 { font-family: "Manrope", Arial, sans-serif !important; font-size: 50px !important; font-style: normal !important; font-weight: 700 !important; letter-spacing: 0 !important; line-height: 1.08 !important; margin: 0; }
-      </style>
-    </head>
-    <body>
-      <h1>${safeMessage}</h1>
-    </body>
-  `;
+          @font-face {
+            font-family: "Manrope";
+            font-style: normal;
+            font-weight: 700;
+            font-display: swap;
+            src: url("${fontBaseUrl}manrope-700.ttf") format("truetype");
+          }
+
+          body { font-family: "Manrope", Arial, sans-serif; font-style: normal; display: grid; place-items: center; min-height: 100vh; margin: 0; background: #111827; color: #fff; }
+          h1 { font-family: "Manrope", Arial, sans-serif !important; font-size: 50px !important; font-style: normal !important; font-weight: 700 !important; letter-spacing: 0 !important; line-height: 1.08 !important; margin: 0; }
+        </style>
+      </head>
+      <body>
+        <h1>${safeMessage}</h1>
+      </body>
+    `;
+  };
+
+  renderBlockPage();
 }
 
 function clearPauseTimer() {

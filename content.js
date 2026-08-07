@@ -11,6 +11,7 @@ const fontBaseUrl = chrome.runtime.getURL("assets/fonts/");
 let pauseTimer = null;
 let isBlocked = false;
 let extensionContextInvalidated = false;
+let dismissedCountdownPausedUntil = 0;
 
 function escapeRegExp(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -231,14 +232,23 @@ async function extendPause(pausedUntil) {
   const didSave = await setPausedUntil(nextPausedUntil);
 
   if (didSave) {
-    hideCountdown();
-    scheduleEvaluation(nextPausedUntil - Date.now() - countdownWindowMs);
+    dismissedCountdownPausedUntil = 0;
+    showCountdown(nextPausedUntil);
   }
 }
 
 function showCountdown(pausedUntil) {
   window.BlockSitesCountdownOverlay?.show(pausedUntil, () => {
     extendPause(pausedUntil);
+  }, () => {
+    const remainingPauseMs = pausedUntil - Date.now();
+    if (remainingPauseMs <= countdownWindowMs) {
+      return;
+    }
+
+    dismissedCountdownPausedUntil = pausedUntil;
+    hideCountdown();
+    scheduleEvaluation(remainingPauseMs - countdownWindowMs);
   });
 
   scheduleEvaluation(pausedUntil - Date.now());
@@ -262,17 +272,22 @@ async function evaluateBlocking() {
   const pausedUntil = await getPausedUntil();
   const remainingPauseMs = pausedUntil - Date.now();
 
-  if (remainingPauseMs > countdownWindowMs) {
+  if (
+    remainingPauseMs > countdownWindowMs &&
+    dismissedCountdownPausedUntil === pausedUntil
+  ) {
     hideCountdown();
     scheduleEvaluation(remainingPauseMs - countdownWindowMs);
     return;
   }
 
   if (remainingPauseMs > 0) {
+    dismissedCountdownPausedUntil = 0;
     showCountdown(pausedUntil);
     return;
   }
 
+  dismissedCountdownPausedUntil = 0;
   clearPauseTimer();
   hideCountdown();
   const blockMessage = await getBlockMessage();

@@ -11,6 +11,10 @@
       "128": "assets/icon.png"
     }
   },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
   "options_page": "options.html",
   "icons": {
     "16": "assets/icon.png",
